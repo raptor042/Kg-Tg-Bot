@@ -189,8 +189,8 @@ async def create_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_html(text=reply_msg)
 
             if len(args) == 2:
-                if int(args[0]) > 2 or int(args[0]) < 1:
-                    reply_msg = "<b>🚨 Maximum duration for battles is 2 minutes while the minimum duration for battles is 1 minute</b>"
+                if int(args[0]) > 3 or int(args[0]) < 1:
+                    reply_msg = "<b>🚨 Maximum duration for battles is 3 minutes while the minimum duration for battles is 1 minute</b>"
                     await update.message.reply_html(text=reply_msg)
                 else:
                     if int(args[1]) > 20:
