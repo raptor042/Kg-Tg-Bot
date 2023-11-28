@@ -94,7 +94,7 @@ async def set(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 _user = update_user(db=db, query={"username" : user.username}, value={"$set" :{"address" : address[0]}})
                 print(_user)
 
-                reply_msg = f"<b>Congratulations {user.username} 🎉, Your address is succesfully set to {update.message.text.strip()} ✅.</b>"
+                reply_msg = f"<b>Congratulations {user.username} 🎉, Your address is succesfully set to {address[0]} ✅.</b>"
                 await update.message.reply_html(text=reply_msg)
             else:
                 reply_msg = f"<b>Enter your ERC20 address.</b>\n\n<i>🔰 Use the following format:\n/set 'your_ERC20_address'</i>\n\n<i>🚨 Please ensure that you provide the correct address for the appropriate blockchain.</i>"
