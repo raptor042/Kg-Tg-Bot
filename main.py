@@ -193,8 +193,8 @@ async def create_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_msg = "<b>🚨 Maximum duration for battles is 3 minutes while the minimum duration for battles is 1 minute</b>"
                     await update.message.reply_html(text=reply_msg)
                 else:
-                    if int(args[1]) > 20:
-                        reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 20</b>"
+                    if int(args[1]) > 5:
+                        reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 5</b>"
                         await update.message.reply_html(text=reply_msg)
                     else:
                         game = set_game(db=db, value={"gameId" : id, "duration" : int(args[0]), "state" : "Inactive", "players" : [{ "userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1]) }]})
@@ -230,7 +230,7 @@ async def join_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_html(text=reply_msg)
 
             if len(args) == 2:
-                if _game["state"] == "Active" and len(_game["players"]) == 2:
+                if _game["state"] == "Active" and len(_game["players"]) <= 4:
                     reply_msg = "<b>🚨 This battle is already Active</b>\n\n<i>🔰 To create a battle use the command, /create_battle 'duration' 'Active_Tanks' 'Reserve_Tanks'</i>"
                     await update.message.reply_html(text=reply_msg)
                 else:
@@ -238,11 +238,11 @@ async def join_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         reply_msg = f"<b>🚨 {user.username} cannot join this battle</b>"
                         await update.message.reply_html(text=reply_msg)
                     else:
-                        if int(args[1]) > 20:
-                            reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 20</b>"
+                        if int(args[1]) > 5:
+                            reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 5</b>"
                             await update.message.reply_html(text=reply_msg)
                         else:
-                            game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}, "$set" : {"state" : "Active"}})
+                            game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}})
                             print(game)
 
                             reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully joined the battle with the ID : {_game['gameId']} ✅.</b>\n\n<i>🔰 The duration of the battle is {_game['duration']} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To create a battle use the command, /create_battle 'duration' 'Tanks'</i>"
