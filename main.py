@@ -203,7 +203,7 @@ async def create_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : -(1000 * int(args[1]))}})
                             print(user_)
 
-                            game = set_game(db=db, value={"gameId" : id, "duration" : int(args[0]), "state" : "Inactive", "players" : [{ "userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1]) }]})
+                            game = set_game(db=db, value={"stake" : 1000 * int(args[1]), "gameId" : id, "duration" : int(args[0]), "state" : "Inactive", "players" : [{ "userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1]) }]})
                             print(game)
 
                             reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully created a battle with the ID : {id} ✅.</b>\n\n<i>🔰 The duration of the battle is {args[0]} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To join the battle use the command, /join_battle 'Battle_ID' 'Tanks'</i>"
@@ -255,7 +255,7 @@ async def join_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : -(1000 * int(args[1]))}})
                                 print(user_)
 
-                                game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}})
+                                game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}, "$inc" : {"stake" : 1000 * int(args[1])}})
                                 print(game)
 
                                 reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully joined the battle with the ID : {_game['gameId']} ✅.</b>\n\n<i>🔰 The duration of the battle is {_game['duration']} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To create a battle use the command, /create_battle 'duration' 'Tanks'</i>"

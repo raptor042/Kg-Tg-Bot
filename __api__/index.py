@@ -3,7 +3,7 @@ import logging
     
 def transfer(_from, to, amount):
     try:
-        response = requests.get(f"http://localhost:8000/transfer/{_from}/{to}/{amount}")
+        response = requests.get(f"https://kg-web-server.onrender.com/transfer/{_from}/{to}/{amount}")
     except:
         logging.error("Unable to send request to the EMPIRE server.")
     else:
@@ -12,7 +12,7 @@ def transfer(_from, to, amount):
 
 def balanceOf(account):
     try:
-        response = requests.get(f"http://localhost:8000/balance/{account}")
+        response = requests.get(f"https://kg-web-server.onrender.com/balance/{account}")
     except:
         logging.error("Unable to send request to the EMPIRE server.")
     else:
