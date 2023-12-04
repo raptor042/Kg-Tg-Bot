@@ -15,7 +15,8 @@ from telegram.ext import (
 import logging
 from random import randint
 
-from db.index import connect_db, get_user, set_user, update_user, get_game, set_game, update_game
+from __db__.index import connect_db, get_user, set_user, update_user, get_game, set_game, update_game
+from __api__.index import balanceOf, transfer
 
 logging.basicConfig(format="%(asctime)s -%(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -27,13 +28,14 @@ START, END = range(2)
 
 MONGO_URI = os.getenv("MONGO_URI")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ADDRESS="0xBD926935AB9EE431fB490AAe7A2d63eC2787a574"
 
 db = None
 
-def random_id() -> str:
+def random_id() -> int:
     random_num = "".join([str(randint(0, 9)) for _ in range(10)])
 
-    return f"KGB-{random_num}"
+    return int(random_num)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
@@ -57,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
                 await update.message.reply_html(text=reply_msg, reply_markup=reply_markup)
             else:
-                reply_msg = f"<b>Hello {user.username} 🎉, Welcome to the KingdomBot 🤖,</b>\n\n<i>✅ Your wallet address is well set to: <b>{_user['address']}.</b></i>\n\n<i>🔰 To fund your play wallet, do /fund __amount__</i>\n\n<i>🔰 To change address, do /set your_ERC20_address</i>\n\n<i>🔰 To withdraw your points/tokens, do /withdraw __amount__</i>\n\n<i>🔰 To get referral link, do /get_referral_link. <b>🚨 Get 2% of your referrals points forever. Every referral get free 25 points ie: 5 free runs.</b></i>\n\n<b>By using our bot and playing, you agree to our terms of usage, available at:</b>\n<i><a href='https://docs.kingdomgame.live/legal'>🔰 Kingdom Game</a></i>"
+                reply_msg = f"<b>Hello {user.username} 🎉, Welcome to the KingdomBot 🤖,</b>\n\n<i>✅ Your wallet address is well set to: <b>{_user['address']}.</b></i>\n\n<i>🔰 To fund your play wallet, do /fund __amount__</i>\n\n<i>🔰 To change address, do /set your_ERC20_address</i>\n\n<i>🔰 To withdraw your points/tokens, do /withdraw __amount__</i>\n\n<i>🔰 To check your balance, do /balance</i>\n\n<i>🔰 To get referral link, do /get_referral_link. <b>🚨 Get 2% of your referrals points forever. Every referral get free 25 points ie: 5 free runs.</b></i>\n\n<b>By using our bot and playing, you agree to our terms of usage, available at:</b>\n<i><a href='https://docs.kingdomgame.live/legal'>🔰 Kingdom Game</a></i>"
                 await update.message.reply_html(text=reply_msg)
             
             return START
@@ -91,7 +93,7 @@ async def set(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if address:
                 context.user_data["address"] = address[0]
 
-                _user = update_user(db=db, query={"username" : user.username}, value={"$set" :{"address" : address[0]}})
+                _user = update_user(db=db, query={"userId" : user.id}, value={"$set" :{"address" : address[0]}})
                 print(_user)
 
                 reply_msg = f"<b>Congratulations {user.username} 🎉, Your address is succesfully set to {address[0]} ✅.</b>"
@@ -181,7 +183,7 @@ async def create_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if update.message.chat.type == "group":
             args = context.args
-            id = random_id()
+            id = f"EMP-{random_id()}"
             _user = get_user(db=db, query={"username" : user.username})
 
             if not _user:
@@ -197,11 +199,18 @@ async def create_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 5</b>"
                         await update.message.reply_html(text=reply_msg)
                     else:
-                        game = set_game(db=db, value={"gameId" : id, "duration" : int(args[0]), "state" : "Inactive", "players" : [{ "userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1]) }]})
-                        print(game)
+                        if int(_user["balance"]) >= (1000 * int(args[1])):
+                            user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : -(1000 * int(args[1]))}})
+                            print(user_)
 
-                        reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully created a battle with the ID : {id} ✅.</b>\n\n<i>🔰 The duration of the battle is {args[0]} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To join the battle use the command, /join_battle 'Battle_ID' 'Tanks'</i>"
-                        await update.message.reply_html(text=reply_msg)
+                            game = set_game(db=db, value={"gameId" : id, "duration" : int(args[0]), "state" : "Inactive", "players" : [{ "userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1]) }]})
+                            print(game)
+
+                            reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully created a battle with the ID : {id} ✅.</b>\n\n<i>🔰 The duration of the battle is {args[0]} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To join the battle use the command, /join_battle 'Battle_ID' 'Tanks'</i>"
+                            await update.message.reply_html(text=reply_msg)
+                        else:
+                            reply_msg = "<b>🚨 Insufficent balance to create the battle.</b>"
+                            await update.message.reply_html(text=reply_msg)
             else:
                 reply_msg = f"<b>🚨 Use the command appropriately.</b>\n\n<i>🔰 Use the following format:\n/create_battle 'duration' 'Tanks'</i>"
                 await update.message.reply_html(text=reply_msg)
@@ -242,16 +251,170 @@ async def join_battle(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             reply_msg = "<b>🚨 Maximum number of tanks to be deployed for battles is 5</b>"
                             await update.message.reply_html(text=reply_msg)
                         else:
-                            game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}})
-                            print(game)
+                            if int(_user["balance"]) >= (1000 * int(args[1])):
+                                user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : -(1000 * int(args[1]))}})
+                                print(user_)
 
-                            reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully joined the battle with the ID : {_game['gameId']} ✅.</b>\n\n<i>🔰 The duration of the battle is {_game['duration']} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To create a battle use the command, /create_battle 'duration' 'Tanks'</i>"
-                            await update.message.reply_html(text=reply_msg)
+                                game = update_game(db=db, query={ "gameId" : args[0] }, value={"$push" : {"players" : {"userId" : _user["userId"], "username" : user.username, "tanks" : int(args[1])}}})
+                                print(game)
+
+                                reply_msg = f"<b>Congratulations {user.username} 🎉, Your battle have been successfully joined the battle with the ID : {_game['gameId']} ✅.</b>\n\n<i>🔰 The duration of the battle is {_game['duration']} minute(s)</i>\n\n<i>🔰 {user.username} have deployed {args[1]} Tanks</i>\n\n<i>🔰 To create a battle use the command, /create_battle 'duration' 'Tanks'</i>"
+                                await update.message.reply_html(text=reply_msg)
+                            else:
+                                reply_msg = "<b>🚨 Insufficent balance to join the battle.</b>"
+                                await update.message.reply_html(text=reply_msg)
             else:
                 reply_msg = f"<b>🚨 Use the command appropriately.</b>\n\n<i>🔰 Use the following format:\n/join_battle 'Battle_ID' 'Tanks'</i>"
                 await update.message.reply_html(text=reply_msg)
         else:
             reply_msg = "<b>🚨 This command is only used in groups</b>"
+            await update.message.reply_html(text=reply_msg)
+    except Exception as e:
+        print(e)
+        logging.error("An error occured while processing this command.")
+
+        reply_msg = f"<b>🚨 {user.username}, An error occured while processing your request.</b>"
+        await update.message.reply_html(text=reply_msg)
+
+async def referral(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user = update.message.from_user
+        logger.info(f"{user.username} created a referral link.")
+
+        if update.message.chat.type == "private":
+            _user = get_user(db=db, query={"username" : user.username})
+
+            if not _user:
+                reply_msg = "<b>🚨 You cannot use this command. You have to set your address before using this command</b>"
+                await update.message.reply_html(text=reply_msg)
+            else:
+                if hasattr(_user, "referral_link"):
+                    referral_link = _user["referral_link"]
+
+                    reply_msg = f"<b>🔰 Your referral link is {referral_link} ✅.</b>"
+                    await update.message.reply_html(text=reply_msg)
+                else:
+                    id = random_id()
+                    referral_link = f"https://t.me/empire_pvp_game_bot/emp-{id}"
+
+                    _user = update_user(db=db, query={"userId" : user.id}, value={"$set" :{"referral_link" : referral_link}})
+                    print(_user)
+
+                    reply_msg = f"<b>🔰 Your referral link is {referral_link} ✅.</b>"
+                    await update.message.reply_html(text=reply_msg)
+        else:
+            reply_msg = "<b>🚨 This command is not used in groups</b>"
+            await update.message.reply_html(text=reply_msg)
+    except Exception as e:
+        print(e)
+        logging.error("An error occured while processing this command.")
+
+        reply_msg = f"<b>🚨 {user.username}, An error occured while processing your request.</b>"
+        await update.message.reply_html(text=reply_msg)
+
+async def fund(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user = update.message.from_user
+        logger.info(f"{user.username} funded a play wallet.")
+
+        if update.message.chat.type == "private":
+            _user = get_user(db=db, query={"username" : user.username})
+
+            if not _user:
+                reply_msg = "<b>🚨 You cannot use this command. You have to set your address before using this command</b>"
+                await update.message.reply_html(text=reply_msg)
+            else:
+                args = context.args
+
+                if len(args) == 1:
+                    _balance = balanceOf(_user["address"])
+                    print(_balance)
+
+                    if float(_balance["_balance"]) > int(args[0]):
+                        _transfer = transfer(_user["address"], ADDRESS, int(args[0]))
+                        print(_transfer)
+
+                        user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : int(args[0])}})
+                        print(user_)
+
+                        reply_msg = f"<b>🔰 Funded your play wallet with {args[0]}$EMP. Your balance is {int(_user["balance"]) + int(args[0])}$EMP ✅.</b>"
+                        await update.message.reply_html(text=reply_msg)
+                    else:
+                        reply_msg = "<b>🚨 Insufficent balance to complete the transaction.</b>"
+                        await update.message.reply_html(text=reply_msg)
+                else:
+                    reply_msg = f"<b>🚨 Use the command appropriately.</b>\n\n<i>🔰 Use the following format:\n/fund 'amount'</i>"
+                    await update.message.reply_html(text=reply_msg)
+        else:
+            reply_msg = "<b>🚨 This command is not used in groups</b>"
+            await update.message.reply_html(text=reply_msg)
+    except Exception as e:
+        print(e)
+        logging.error("An error occured while processing this command.")
+
+        reply_msg = f"<b>🚨 {user.username}, An error occured while processing your request.</b>"
+        await update.message.reply_html(text=reply_msg)
+
+async def withdraw(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user = update.message.from_user
+        logger.info(f"{user.username} withdrew from play wallet.")
+
+        if update.message.chat.type == "private":
+            _user = get_user(db=db, query={"username" : user.username})
+
+            if not _user:
+                reply_msg = "<b>🚨 You cannot use this command. You have to set your address before using this command</b>"
+                await update.message.reply_html(text=reply_msg)
+            else:
+                args = context.args
+
+                if len(args) == 1:
+                    if _user["balance"] >= int(args[0]):
+                        _transfer = transfer(ADDRESS, _user["address"], int(args[0]))
+                        print(_transfer)
+
+                        user_ = update_user(db=db, query={"userId" : user.id}, value={"$inc" :{"balance" : -int(args[0])}})
+                        print(user_)
+
+                        reply_msg = f"<b>🔰 Withdrawl of {args[0]}$EMP from your play wallet. Your balance is {int(_user["balance"]) - int(args[0])}$EMP ✅.</b>"
+                        await update.message.reply_html(text=reply_msg)
+                    else:
+                        reply_msg = "<b>🚨 Insufficent balance to complete the transaction.</b>"
+                        await update.message.reply_html(text=reply_msg)
+                else:
+                    reply_msg = f"<b>🚨 Use the command appropriately.</b>\n\n<i>🔰 Use the following format:\n/fund 'amount'</i>"
+                    await update.message.reply_html(text=reply_msg)
+        else:
+            reply_msg = "<b>🚨 This command is not used in groups</b>"
+            await update.message.reply_html(text=reply_msg)
+    except Exception as e:
+        print(e)
+        logging.error("An error occured while processing this command.")
+
+        reply_msg = f"<b>🚨 {user.username}, An error occured while processing your request.</b>"
+        await update.message.reply_html(text=reply_msg)
+
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user = update.message.from_user
+        logger.info(f"{user.username} checked balance.")
+
+        if update.message.chat.type == "private":
+            _user = get_user(db=db, query={"username" : user.username})
+
+            if not _user:
+                reply_msg = "<b>🚨 You cannot use this command. You have to set your address before using this command</b>"
+                await update.message.reply_html(text=reply_msg)
+            else:
+                _balance = balanceOf(_user["address"])
+                wallet = _user["balance"]
+                print(_balance, wallet)
+
+                reply_msg = f"<b>🔰 Your wallet balance is {_balance["_balance"]}$EMP. Your available play wallet balance is {wallet}$EMP ✅.</b>"
+                await update.message.reply_html(text=reply_msg)
+        else:
+            reply_msg = "<b>🚨 This command is not used in groups</b>"
             await update.message.reply_html(text=reply_msg)
     except Exception as e:
         print(e)
@@ -284,12 +447,20 @@ def main() -> None:
     set_handler = CommandHandler("set", set)
     create_battle_handler = CommandHandler("create_battle", create_battle)
     join_battle_handler = CommandHandler("join_battle", join_battle)
+    referral_handler = CommandHandler("get_referral_link", referral)
+    fund_handler = CommandHandler("fund", fund)
+    balance_handler = CommandHandler("balance", balance)
+    withdraw_handler = CommandHandler("withdraw", withdraw)
 
     app.add_handler(conv_handler)
     app.add_handler(start_handler)
     app.add_handler(set_handler)
     app.add_handler(create_battle_handler)
     app.add_handler(join_battle_handler)
+    app.add_handler(referral_handler)
+    app.add_handler(fund_handler)
+    app.add_handler(balance_handler)
+    app.add_handler(withdraw_handler)
 
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
